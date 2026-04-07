@@ -1,15 +1,43 @@
 <!DOCTYPE html>
-<Html lang=""en>
+<html lang="en">
     <head>
         <meta charset="utf-8" />
         <title>Draw a blue rectangle (canvas version)</title>
     </head>
 
     <body onload="main()">
-        <canvas id=""example" width="400" height="400">
-        Please use a browser that supports "canvas"
-    </canvas>
-    <script src="asg0.js"></script>
-    <script src="lib/cuon-matrix-cse160.js"></script>
+        <canvas id="example" width="400" height="400">
+            Please use a browser that supports "canvas"
+        </canvas>
+        <script src="asg0.js"></script>
+        <script src="lib/cuon-matrix-cse160.js"></script>
+        <p>
+            v1: 
+            x <input type="number" id="v1inputX" value=2.25>
+            y <input type="number" id="v1inputY" value=2.25>
+        </p>
+        <p>
+            v2: 
+            x <input type="number" id="v2inputX" value=-2.25>
+            y <input type="number" id="v2inputY" value=2.25>
+        </p>
+        
+        <input type="button" value="Update Vector" onclick="handleDrawEvent()">
+        <p>
+            Operation:
+            <select name="Operations" id="op-select">
+                <option value="add">Add</option>
+                <option value="sub">Subtract</option>
+                <option value="mul">Multiply</option>
+                <option value="div">Divide</option>
+                <option value="mag">Magnitude</option>
+                <option value="norm">Normalize</option>
+                <option value="btwn">Angle Between</option>
+                <option value="area">Area</option>
+            </select>
+            Scalar:
+            <input type="number" id="scalar" value=1>
+        </p>
+        <input type="button" value="Update Vector" onclick="handleDrawOperationEvent()">
     </body>
-</Html>
+</html>

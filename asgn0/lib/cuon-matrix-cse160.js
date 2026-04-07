@@ -44,11 +44,10 @@ class Vector3 {
       * @return this
       */
     add(other) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements.forEach((value, index) => {
+        this.elements[index] = value + other.elements[index]
+      });
+      return this;
     };
 
     /**
@@ -56,11 +55,10 @@ class Vector3 {
       * @return this
       */
     sub(other) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements.forEach((value, index) => {
+        this.elements[index] = value - other.elements[index]
+      });
+      return this;
     };
 
     /**
@@ -68,11 +66,10 @@ class Vector3 {
       * @return this
       */
     div(scalar) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements.forEach((value, index) => {
+        this.elements[index] = value / scalar
+      });
+      return this;
     };
 
     /**
@@ -80,11 +77,10 @@ class Vector3 {
       * @return this
       */
     mul(scalar) {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      this.elements.forEach((value, index) => {
+        this.elements[index] = value * scalar
+      });
+      return this;
     };
 
     /**
@@ -92,11 +88,11 @@ class Vector3 {
       * @return scalar
       */
     static dot(other1, other2) {
-        // Insert your code here.
-        let d = 0; // Modify this line to calculate this vector's magnitude.
+      let d = other1.elements[0] * other2.elements[0];
+      d += other1.elements[1] * other2.elements[1]
+      d += other1.elements[2] * other2.elements[2]
 
-        // Don't delete the return statement.
-        return d;
+      return d;
     }
 
     /**
@@ -104,11 +100,10 @@ class Vector3 {
       * @return new vector
       */
     static cross(other1, other2) {
-        // Insert your code here.
-        // This function should create and return a new vector.
-        let v3 = new Vector3(); // Modify this line to calculate cross product between other1 and other2.
-
-        // Don't delete the return statement.
+        let v3 = new Vector3([0,0,0]);
+        v3.elements[0] = other1.elements[1] * other2.elements[2] - other1.elements[2] * other2.elements[1];
+        v3.elements[1] = other1.elements[2] * other2.elements[0] - other1.elements[0] * other2.elements[2];
+        v3.elements[2] = other1.elements[0] * other2.elements[1] - other1.elements[1] * other2.elements[0];
         return v3;
     }
 
@@ -117,11 +112,12 @@ class Vector3 {
       * @return scalar
       */
     magnitude() {
-        // Insert your code here.
-        let m = 0; // Modify this line to calculate this vector's magnitude.
-
-        // Don't delete the return statement.
-        return m;
+      let m = 0;
+      this.elements.forEach((value, index) => {
+        m += value**2
+      });
+      m = Math.sqrt(m);
+      return m;
     };
 
     /**
@@ -129,11 +125,9 @@ class Vector3 {
       * @return this
       */
     normalize() {
-        // Insert your code here.
-        // This function should change this vector (this.elements) and not create a new vector.
-
-        // Don't delete the return statement.
-        return this;
+      let m = this.magnitude();
+      this.div(m)
+      return this;
     };
 }
 
