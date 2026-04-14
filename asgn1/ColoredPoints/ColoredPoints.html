@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Change a point color</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl160" width="400" height="400">
+    Please use a browser that supports "canvas"
+    </canvas>
+
+    <p id="numdot">XXX</p>
+
+    <p>
+      <button type="button" id="clearButton">Clear</button>
+    </p>
+
+    <p>
+      R: <input type="range" id="r" value=1 min=0 max=1 step=0.01>
+    </p>
+    <p>
+      G: <input type="range" id="g" value=0 min=0 max=1 step=0.01>
+    </p>
+    <p>
+      B: <input type="range" id="b" value=0 min=0 max=1 step=0.01>
+    </p>
+    <p>
+      S: <input type="range" id="s" value=10 min=1 max=100 step=1>
+    </p>
+
+    <script src="../../lib/webgl-utils.js"></script>
+    <script src="../../lib/webgl-debug.js"></script>
+    <script src="../../lib/cuon-utils.js"></script>
+    <script src="ColoredPoints.js"></script>
+    <script src="Point.js"></script>
+  </body>
+</html>

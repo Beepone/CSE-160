@@ -29,7 +29,8 @@ function setupWebGL(){
   canvas = document.getElementById('webgl160');
   
   // Get the rendering context for WebGL
-  gl = getWebGLContext(canvas);
+  // gl = getWebGLContext(canvas);
+  gl = canvas.getContext("webgl", { preserveDrawingBuffer: true});
   if (!gl) {
     console.log('Failed to get the rendering context for WebGL');
     return;
@@ -65,14 +66,19 @@ function connectVariablesToGLSL() {
     return;
   }
 }
+var g_shapeList = [];
 
 function main() {
   setupWebGL();
 
   connectVariablesToGLSL();
 
+  document.getElementById('clearButton').onclick = function() { g_shapeList=[]; renderAllShapes(); }; 
+
+
   // Register function (event handler) to be called on a mouse press
   canvas.onmousedown = click;
+  canvas.onmousemove = function(ev) {if (ev.buttons == 1) {click(ev)}};
 
   // Specify the color for clearing <canvas>
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -81,26 +87,22 @@ function main() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 }
 
-var g_points = [];  // The array for the position of a mouse press
-var g_colors = [];  // The array to store the color of a point
-var g_sizes = [];  // The array to store the size of a point
-
 
 function click(ev) {
   
   [x,y] = clickCoordinatesCoversion(ev);
+  let point = new Point();
+
   // Store the coordinates to g_points array
-  g_points.push([x, y]);
+  point.position = [x, y, 0.0];
 
   [r, g, b] = getDocumentData();
+  point.color = [r, g, b, 1.0];
 
-
-  
-  g_colors.push([r, g, b, 1.0]);
   var s = document.getElementById('s').value;
-  g_sizes.push(s);
+  point.size = s;
   // Clear <canvas>
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  g_shapeList.push(point);
   
   renderAllShapes();
 }
@@ -110,26 +112,20 @@ function getDocumentData(){
   var g = document.getElementById('g').value;
   var b = document.getElementById('b').value;
 
-
-
   return [r, g, b]
 }
 
 function renderAllShapes(){
-  var len = g_points.length;
+  var startTime = performance.now();
+  // Clear <canvas>
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  var len = g_shapeList.length;
   for(var i = 0; i < len; i++) {
-    var xy = g_points[i];
-    var rgba = g_colors[i];
-    var size = g_sizes[i];
-    
-    // Pass the position of a point to a_Position variable
-    gl.vertexAttrib3f(a_Position, xy[0], xy[1], 0.0);
-    // Pass the color of a point to u_FragColor variable
-    gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-    gl.uniform1f(u_Size, size);
-    // Draw
-    gl.drawArrays(gl.POINTS, 0, 1);
+    g_shapeList[i].render();
   }
+
+  var duration = performance.now() - startTime;
+  sendTextToHTML("numdot: " + len + " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
 }
 
 function clickCoordinatesCoversion(ev){
@@ -142,4 +138,12 @@ function clickCoordinatesCoversion(ev){
 
   return [x,y];
   
+}
+function sendTextToHTML(text, htmlID){
+  var htmlElm = document.getElementById(htmlID);
+  if (!htmlElm) {
+    console.log("Failed to get " + htmlID + " from HTML");
+    return
+  }
+  htmlElm.innerHTML = text;
 }
