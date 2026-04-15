@@ -72,6 +72,7 @@ function connectVariablesToGLSL() {
 
 const POINT = 0;
 const TRIANGLE = 1;
+const CIRCLE = 2;
 var g_shapeList = [];
 let g_selectedType = TRIANGLE;
 
@@ -83,17 +84,19 @@ function main() {
   document.getElementById('clearButton').onclick = function() { g_shapeList=[]; renderAllShapes(); }; 
   document.getElementById('pointButton').onclick = function() { g_selectedType=POINT;}; 
   document.getElementById('triangleButton').onclick = function() { g_selectedType=TRIANGLE; }; 
-
+  document.getElementById('circleButton').onclick = function() { g_selectedType=CIRCLE; }; 
+  document.getElementById('pictureButton').onclick = function() { drawPicture(); };
 
   // Register function (event handler) to be called on a mouse press
   canvas.onmousedown = click;
   canvas.onmousemove = function(ev) {if (ev.buttons == 1) {click(ev)}};
-
+  
   // Specify the color for clearing <canvas>
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT);
+  drawPicture();
 }
 
 
@@ -103,8 +106,11 @@ function click(ev) {
   let point;
   if (g_selectedType == POINT){
     point = new Point();
-  } else{
+  } else if (g_selectedType == TRIANGLE){
     point = new Triangle();
+  } else {
+    point = new Circle();
+    point.segments = document.getElementById('seg').value;
   }
 
   // Store the coordinates to g_points array
