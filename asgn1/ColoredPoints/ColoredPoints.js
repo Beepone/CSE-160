@@ -73,8 +73,10 @@ function connectVariablesToGLSL() {
 const POINT = 0;
 const TRIANGLE = 1;
 const CIRCLE = 2;
+const RECTANGLE = 3;
 var g_shapeList = [];
 let g_selectedType = TRIANGLE;
+let g_rectangleStart = null;
 
 function main() {
   setupWebGL();
@@ -85,11 +87,11 @@ function main() {
   document.getElementById('pointButton').onclick = function() { g_selectedType=POINT;}; 
   document.getElementById('triangleButton').onclick = function() { g_selectedType=TRIANGLE; }; 
   document.getElementById('circleButton').onclick = function() { g_selectedType=CIRCLE; }; 
+  document.getElementById('rectangleButton').onclick = function() { g_selectedType=RECTANGLE; };
   document.getElementById('pictureButton').onclick = function() { drawPicture(); };
 
   // Register function (event handler) to be called on a mouse press
   canvas.onmousedown = click;
-  canvas.onmousemove = function(ev) {if (ev.buttons == 1) {click(ev)}};
   
   // Specify the color for clearing <canvas>
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -103,28 +105,44 @@ function main() {
 function click(ev) {
   
   [x,y] = clickCoordinatesCoversion(ev);
-  let point;
-  if (g_selectedType == POINT){
-    point = new Point();
-  } else if (g_selectedType == TRIANGLE){
-    point = new Triangle();
+
+  if (g_selectedType === RECTANGLE) {
+    if (g_rectangleStart === null) {
+      g_rectangleStart = [x, y];
+    } else {
+      let rect = new Rectangle();
+      rect.position = [g_rectangleStart[0], g_rectangleStart[1], x, y];
+      [r, g, b] = getDocumentData();
+      rect.color = [r, g, b, 1.0];
+      rect.size = document.getElementById('s').value;
+      g_shapeList.push(rect);
+      g_rectangleStart = null;
+      renderAllShapes();
+    }
   } else {
-    point = new Circle();
-    point.segments = document.getElementById('seg').value;
+    let point;
+    if (g_selectedType == POINT){
+      point = new Point();
+    } else if (g_selectedType == TRIANGLE){
+      point = new Triangle();
+    } else {
+      point = new Circle();
+      point.segments = document.getElementById('seg').value;
+    }
+
+    // Store the coordinates to g_points array
+    point.position = [x, y, 0.0];
+
+    [r, g, b] = getDocumentData();
+    point.color = [r, g, b, 1.0];
+
+    var s = document.getElementById('s').value;
+    point.size = s;
+    // Clear <canvas>
+    g_shapeList.push(point);
+    
+    renderAllShapes();
   }
-
-  // Store the coordinates to g_points array
-  point.position = [x, y, 0.0];
-
-  [r, g, b] = getDocumentData();
-  point.color = [r, g, b, 1.0];
-
-  var s = document.getElementById('s').value;
-  point.size = s;
-  // Clear <canvas>
-  g_shapeList.push(point);
-  
-  renderAllShapes();
 }
 
 function getDocumentData(){
