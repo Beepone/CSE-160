@@ -3,9 +3,9 @@
 var VSHADER_SOURCE =`
   attribute vec4 a_Position;
   uniform mat4 u_ModelMatrix;
-  uniform float u_Size;
+  uniform mat4 u_GlobalRotateMatrix;
   void main() {
-    gl_Position = u_ModelMatrix * a_Position;
+    gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
   }`;
 
 // Fragment shader program
@@ -24,6 +24,7 @@ let gl;
 let a_Position;
 let u_FragColor;
 let u_ModelMatrix;
+let u_GlobalRotateMatrix;
 
 
 function setupWebGL(){
@@ -57,17 +58,27 @@ function connectVariablesToGLSL() {
   // Get the storage location of u_FragColor
   u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
   if (!u_FragColor) {
-    console.log('Failed to get the storage location of u_ModelMatrix');
-    return;
-  }
-
-  
-  // Get the storage location of u_FragColor
-  u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
-  if (!u_ModelMatrix) {
     console.log('Failed to get the storage location of u_FragColor');
     return;
   }
+
+  // Get the storage location of u_ModelMatrix
+  u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
+  if (!u_ModelMatrix) {
+    console.log('Failed to get the storage location of u_ModelMatrix');
+    return;
+  }
+  
+  // Get the storage location of u_FragColor
+  u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
+  if (!u_GlobalRotateMatrix) {
+    console.log('Failed to get the storage location of u_GlobalRotateMatrix');
+    return;
+  }
+
+  // Set initial value for this matrix to identity
+  var identityM = new Matrix4();
+  gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements)
 }
 
 const POINT = 0;
@@ -77,18 +88,14 @@ const RECTANGLE = 3;
 var g_shapeList = [];
 let g_selectedType = TRIANGLE;
 let g_rectangleStart = null;
+let g_globalAngle = 0;
 
 function main() {
   setupWebGL();
 
   connectVariablesToGLSL();
 
-  document.getElementById('clearButton').onclick = function() { g_shapeList=[]; renderAllShapes(); }; 
-  document.getElementById('pointButton').onclick = function() { g_selectedType=POINT;}; 
-  document.getElementById('triangleButton').onclick = function() { g_selectedType=TRIANGLE; }; 
-  document.getElementById('circleButton').onclick = function() { g_selectedType=CIRCLE; }; 
-  document.getElementById('rectangleButton').onclick = function() { g_selectedType=RECTANGLE; };
-  document.getElementById('pictureButton').onclick = function() { drawPicture(); };
+  addActionsForHtmlUI();
 
   // Register function (event handler) to be called on a mouse press
   canvas.onmousedown = click;
@@ -100,6 +107,16 @@ function main() {
   renderAllShapes();
 }
 
+function  addActionsForHtmlUI(){
+  document.getElementById('clearButton').onclick = function() { g_shapeList=[]; renderAllShapes(); }; 
+  document.getElementById('pointButton').onclick = function() { g_selectedType=POINT;}; 
+  document.getElementById('triangleButton').onclick = function() { g_selectedType=TRIANGLE; }; 
+  document.getElementById('circleButton').onclick = function() { g_selectedType=CIRCLE; }; 
+  document.getElementById('rectangleButton').onclick = function() { g_selectedType=RECTANGLE; };
+  document.getElementById('pictureButton').onclick = function() { drawPicture(); };
+
+  document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalAngle = this.value; renderAllShapes();});
+}
 
 function click(ev) {
   
@@ -153,19 +170,38 @@ function getDocumentData(){
 }
 
 function renderAllShapes(){
+  // Check time at start of this function.
   var startTime = performance.now();
+
+  // Pass the matrix to u_ModelMatrix attribute
+  var globalRotMat = new Matrix4().rotate(g_globalAngle,0,1,0);
+  gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
+
+
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT);
   
 
   drawTriangle3D([-1.0,0.0,0.0,  -0.5,-1.0,0.0,  0.0,0.0,0.0]);
 
+  // draw the body cube
   var body = new Cube();
   body.color = [1.0,0.0,0.0,1.0];
+  body.matrix.translate(-.25, -.5,0.0)
+  body.matrix.scale(0.5,1.0,0.5)
   body.render();
 
+  // draw the left arm
+  var leftArm = new Cube();
+  leftArm.color = [1,1,0,1];
+  leftArm.matrix.translate(0.7,0.0,0.0);
+  leftArm.matrix.rotate(45.0,0.0,0.0,1.0);
+  leftArm.matrix.scale(0.25, 0.7, 0.5);
+  leftArm.render();
+
+  // Check performance of this function
   var duration = performance.now() - startTime;
-  sendTextToHTML("numdot: " + len + " ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
+  sendTextToHTML(" ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
 }
 
 function clickCoordinatesCoversion(ev){
