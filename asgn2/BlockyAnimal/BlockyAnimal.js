@@ -29,7 +29,7 @@ let u_GlobalRotateMatrix;
 
 function setupWebGL(){
   // Retrieve <canvas> element
-  canvas = document.getElementById('webgl160');
+  canvas = document.getElementById('webgl');
   
   // Get the rendering context for WebGL
   // gl = getWebGLContext(canvas);
@@ -38,6 +38,8 @@ function setupWebGL(){
     console.log('Failed to get the rendering context for WebGL');
     return;
   }
+
+  gl.enable(gl.DEPTH_TEST);
 
 }
 
@@ -76,6 +78,7 @@ function connectVariablesToGLSL() {
     return;
   }
 
+  
   // Set initial value for this matrix to identity
   var identityM = new Matrix4();
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityM.elements)
@@ -88,7 +91,7 @@ const RECTANGLE = 3;
 var g_shapeList = [];
 let g_selectedType = TRIANGLE;
 let g_rectangleStart = null;
-let g_globalAngle = 0;
+let g_globalAngle = 45;
 
 function main() {
   setupWebGL();
@@ -97,124 +100,153 @@ function main() {
 
   addActionsForHtmlUI();
 
-  // Register function (event handler) to be called on a mouse press
-  canvas.onmousedown = click;
   
   // Specify the color for clearing <canvas>
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
   
-  renderAllShapes();
+  renderScene();
 }
 
 function  addActionsForHtmlUI(){
-  document.getElementById('clearButton').onclick = function() { g_shapeList=[]; renderAllShapes(); }; 
-  document.getElementById('pointButton').onclick = function() { g_selectedType=POINT;}; 
-  document.getElementById('triangleButton').onclick = function() { g_selectedType=TRIANGLE; }; 
-  document.getElementById('circleButton').onclick = function() { g_selectedType=CIRCLE; }; 
-  document.getElementById('rectangleButton').onclick = function() { g_selectedType=RECTANGLE; };
-  document.getElementById('pictureButton').onclick = function() { drawPicture(); };
-
-  document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalAngle = this.value; renderAllShapes();});
-}
-
-function click(ev) {
   
-  [x,y] = clickCoordinatesCoversion(ev);
 
-  if (g_selectedType === RECTANGLE) {
-    if (g_rectangleStart === null) {
-      g_rectangleStart = [x, y];
-    } else {
-      let rect = new Rectangle();
-      rect.position = [g_rectangleStart[0], g_rectangleStart[1], x, y];
-      [r, g, b] = getDocumentData();
-      rect.color = [r, g, b, 1.0];
-      rect.size = document.getElementById('s').value;
-      g_shapeList.push(rect);
-      g_rectangleStart = null;
-      renderAllShapes();
-    }
-  } else {
-    let point;
-    if (g_selectedType == POINT){
-      point = new Point();
-    } else if (g_selectedType == TRIANGLE){
-      point = new Triangle();
-    } else {
-      point = new Circle();
-      point.segments = document.getElementById('seg').value;
-    }
-
-    // Store the coordinates to g_points array
-    point.position = [x, y, 0.0];
-
-    [r, g, b] = getDocumentData();
-    point.color = [r, g, b, 1.0];
-
-    var s = document.getElementById('s').value;
-    point.size = s;
-    // Clear <canvas>
-    g_shapeList.push(point);
-    
-    renderAllShapes();
-  }
+  document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalAngle = this.value; renderScene();});
 }
 
-function getDocumentData(){
-  var r = document.getElementById('r').value;
-  var g = document.getElementById('g').value;
-  var b = document.getElementById('b').value;
 
-  return [r, g, b]
-}
 
-function renderAllShapes(){
+function renderScene(){
   // Check time at start of this function.
   var startTime = performance.now();
 
   // Pass the matrix to u_ModelMatrix attribute
-  var globalRotMat = new Matrix4().rotate(g_globalAngle,0,1,0);
+  var globalRotMat = new Matrix4().rotate(g_globalAngle,10,1,0);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
 
 
   // Clear <canvas>
-  gl.clear(gl.COLOR_BUFFER_BIT);
-  
-
-  drawTriangle3D([-1.0,0.0,0.0,  -0.5,-1.0,0.0,  0.0,0.0,0.0]);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // draw the body cube
-  var body = new Cube();
-  body.color = [1.0,0.0,0.0,1.0];
-  body.matrix.translate(-.25, -.5,0.0)
-  body.matrix.scale(0.5,1.0,0.5)
-  body.render();
+  var cowBody = new Cube();
+  cowBody.color = [0.549, 0.463, 0.282,1];
+  cowBody.matrix.setTranslate(0,0,0);
+  var bodyPassMat = new Matrix4(cowBody.matrix);
+  cowBody.matrix.scale(1,.5,.5);
+  cowBody.render();
 
-  // draw the left arm
-  var leftArm = new Cube();
-  leftArm.color = [1,1,0,1];
-  leftArm.matrix.translate(0.7,0.0,0.0);
-  leftArm.matrix.rotate(45.0,0.0,0.0,1.0);
-  leftArm.matrix.scale(0.25, 0.7, 0.5);
-  leftArm.render();
+  // draw the back left leg cube
+  var backLeftLegMatrix = new Matrix4(bodyPassMat);
+  backLeftLegMatrix.translate(-.3, -.3, .2);
+  var backLeftLegColor = [0.549, 0.463, 0.282,1];
+  Leg(backLeftLegMatrix, backLeftLegColor);
+
+  // draw the back right leg cube
+  var backRightLegyMatrix = new Matrix4(bodyPassMat);
+  backRightLegyMatrix.translate(-.3, -.3, -.2);
+  var backRightLegColor = [0.549, 0.463, 0.282,1];
+  Leg(backRightLegyMatrix, backRightLegColor);
+
+  // draw the front left leg cube
+  var frontLeftLegMatrix = new Matrix4(bodyPassMat);
+  frontLeftLegMatrix.translate(.3, -.3, .2);
+  var frontLeftLegColor = [0.549, 0.463, 0.282,1];
+  Leg(frontLeftLegMatrix, frontLeftLegColor);
+
+  // draw the front right leg cube
+  var frontRightLegyMatrix = new Matrix4(bodyPassMat);
+  frontRightLegyMatrix.translate(.3, -.3, -.2);
+  var frontRightLegColor = [0.549, 0.463, 0.282,1];
+  Leg(frontRightLegyMatrix, frontRightLegColor);
+
+  var tailMatrix = new Matrix4();
+  var tailColor = [0.486, 0.4, 0.219,1];
+  Tail(tailMatrix, tailColor);
+
+  // draw the head cube
+  var headMatrix = new Matrix4(); 
+  var headColor = [0.486, 0.4, 0.219,1];
+  Head(headMatrix, headColor);
 
   // Check performance of this function
   var duration = performance.now() - startTime;
   sendTextToHTML(" ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
 }
 
-function clickCoordinatesCoversion(ev){
-  var x = ev.clientX; // x coordinate of a mouse pointer
-  var y = ev.clientY; // y coordinate of a mouse pointer
-  var rect = ev.target.getBoundingClientRect();
-
-  x = ((x - rect.left) - canvas.width/2)/(canvas.width/2);
-  y = (canvas.height/2 - (y - rect.top))/(canvas.height/2);
-
-  return [x,y];
-  
+function Tail(matrix, color){
+  var tailJoint1 = new Cube();
+  tailJoint1.color = color;
+  tailJoint1.matrix.translate(-.55,0,0);
+  tailJoint1.matrix.rotate(-15,0,0);
+  tailJoint1.matrix.scale(.1,.3,.1);
+  tailJoint1.render();
 }
+
+function Head(matrix, color) {
+  //draw main part of head cube
+  var cowHead = new Cube();
+  cowHead.matrix = new Matrix4(matrix)
+  cowHead.color = color;
+  cowHead.matrix.translate(.6, .2, 0);
+  var cowHeadMat = new Matrix4(cowHead.matrix);
+  cowHead.matrix.scale(.3, .35, .35);
+  cowHead.render();
+
+  // draw the left horn snout cube
+  var cowHornL = new Cube();
+  cowHornL.color = [0.5, 0.5, 0.5, 1];
+  cowHornL.matrix = new Matrix4(cowHeadMat);
+  cowHornL.matrix.translate(.15, .1, -0.225);
+  cowHornL.matrix.scale(.25, .1, .1);
+  cowHornL.render();
+
+  // draw the right horn snout cube
+  var cowHornR = new Cube();
+  cowHornR.color = [0.5, 0.5, 0.5, 1];
+  cowHornR.matrix = new Matrix4(cowHeadMat);
+  cowHornR.matrix.translate(.15, .1, 0.225);
+  cowHornR.matrix.scale(.25, .1, .1);
+  cowHornR.render();
+
+  // draw the front snout cube
+  var cowSnout = new Cube();
+  cowSnout.color = color;
+  cowSnout.matrix.translate(.75, .1, 0);
+  cowSnout.matrix.scale(.15, .15, .25);
+  cowSnout.render();
+}
+
+function Leg(matrix, color) {
+  var cowLegJoint1 = new Cube();
+  cowLegJoint1.color = color;
+  cowLegJoint1.matrix = new Matrix4(matrix);
+  cowLegJoint1.matrix.rotate(15, 0, 0);
+  cowLegJoint1.matrix.translate(0,.05,0)
+  var jointPass1 = new Matrix4(cowLegJoint1.matrix)
+  cowLegJoint1.matrix.scale(.2, .2, .2);
+  cowLegJoint1.render();
+
+  var cowLegJoint2 = new Cube();
+  cowLegJoint2.color = [color[0]*.9,color[1]*.9,color[2]*.9,color[3]];
+  cowLegJoint2.matrix = jointPass1;
+  cowLegJoint2.matrix.rotate(-30, 0, 0);
+  cowLegJoint2.matrix.translate(0, -.2, .0);
+  var jointPass2 = new Matrix4(cowLegJoint2.matrix)
+  cowLegJoint2.matrix.scale(.175, .3, .175);
+  cowLegJoint2.render();
+
+  var cowLegJoint3 = new Cube();
+  cowLegJoint3.color = [color[0]*.8,color[1]*.8,color[2]*.8,color[3]];
+  cowLegJoint3.matrix = jointPass2;
+  cowLegJoint3.matrix.rotate(15,0,0);
+  cowLegJoint3.matrix.translate(0.05,-0.15,0);
+  cowLegJoint3.matrix.scale(.3,.1,.2);
+  cowLegJoint3.render();
+
+}
+
+// This is to see FPS
 function sendTextToHTML(text, htmlID){
   var htmlElm = document.getElementById(htmlID);
   if (!htmlElm) {

@@ -18,6 +18,6 @@ class Rectangle{
     gl.uniform1f(u_Size, size);
     // Draw two triangles for the rectangle
     drawTriangle([xy[0], xy[1], xy[2], xy[1], xy[0], xy[3]]);   // first triangle
-    drawTriangle([xy[2], xy[1], xy[2], xy[3], xy[0], xy[3]]); // second triangle
+    drawTriangle([xy[2], xy[1], xy[2], xy[3], xy[0], xy[3]]);   // second triangle
   }
 }
