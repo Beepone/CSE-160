@@ -91,7 +91,16 @@ const RECTANGLE = 3;
 var g_shapeList = [];
 let g_selectedType = TRIANGLE;
 let g_rectangleStart = null;
-let g_globalAngle = 45;
+let g_globalXAngle = 45;
+let g_globalYAngle = 0;
+let g_legAngle = 0;
+let g_startTime = performance.now()/1000.0;
+let g_seconds = performance.now()/1000.0-g_startTime;
+let g_isAnimated = false;
+let g_tailAngle = 0;
+let g_isDragging = false;
+let g_lastMouseX = 0;
+let g_lastMouseY = 0;
 
 function main() {
   setupWebGL();
@@ -105,13 +114,38 @@ function main() {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
   
-  renderScene();
+  // renderScene();
+  requestAnimationFrame(tick)
 }
 
 function  addActionsForHtmlUI(){
-  
+  document.getElementById('legJoints').addEventListener('mousemove', function() { g_legAngle = this.value; });
+  document.getElementById('tailJoints').addEventListener('mousemove', function() { g_tailAngle = this.value; });
+  document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalXAngle = this.value; });
+  document.getElementById('animOn').onclick = function() { g_isAnimated = true; };
+  document.getElementById('animOff').onclick = function() { g_isAnimated = false; };
 
-  document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalAngle = this.value; renderScene();});
+  canvas.addEventListener('mousedown', function(ev) {
+    g_isDragging = true;
+    g_lastMouseX = ev.clientX;
+    g_lastMouseY = ev.clientY;
+  })
+  canvas.addEventListener('mousemove', function(ev){
+    if (!g_isDragging) return;
+
+    var deltaX = ev.clientX - g_lastMouseX;
+    var deltaY = g_lastMouseY - ev.clientY;
+    g_globalXAngle -= deltaX *.5
+    g_globalYAngle -= deltaY *.5
+    g_lastMouseX = ev.clientX;
+    g_lastMouseY = ev.clientY;
+  })
+  canvas.addEventListener('mouseup', function(ev) {
+    g_isDragging = false;
+  })
+  canvas.addEventListener('mouseleave', function(ev) {
+    g_isDragging = false;
+  })
 }
 
 
@@ -121,7 +155,8 @@ function renderScene(){
   var startTime = performance.now();
 
   // Pass the matrix to u_ModelMatrix attribute
-  var globalRotMat = new Matrix4().rotate(g_globalAngle,10,1,0);
+  var globalRotMat = new Matrix4().rotate(g_globalXAngle,0,1,0);
+  globalRotMat.rotate(g_globalYAngle,1,0,0);
   gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, globalRotMat.elements);
 
 
@@ -140,29 +175,29 @@ function renderScene(){
   var backLeftLegMatrix = new Matrix4(bodyPassMat);
   backLeftLegMatrix.translate(-.3, -.3, .2);
   var backLeftLegColor = [0.549, 0.463, 0.282,1];
-  Leg(backLeftLegMatrix, backLeftLegColor);
+  Leg(backLeftLegMatrix, backLeftLegColor, -1);
 
   // draw the back right leg cube
   var backRightLegyMatrix = new Matrix4(bodyPassMat);
   backRightLegyMatrix.translate(-.3, -.3, -.2);
   var backRightLegColor = [0.549, 0.463, 0.282,1];
-  Leg(backRightLegyMatrix, backRightLegColor);
+  Leg(backRightLegyMatrix, backRightLegColor, 1);
 
   // draw the front left leg cube
   var frontLeftLegMatrix = new Matrix4(bodyPassMat);
   frontLeftLegMatrix.translate(.3, -.3, .2);
   var frontLeftLegColor = [0.549, 0.463, 0.282,1];
-  Leg(frontLeftLegMatrix, frontLeftLegColor);
+  Leg(frontLeftLegMatrix, frontLeftLegColor, 1);
 
   // draw the front right leg cube
   var frontRightLegyMatrix = new Matrix4(bodyPassMat);
   frontRightLegyMatrix.translate(.3, -.3, -.2);
   var frontRightLegColor = [0.549, 0.463, 0.282,1];
-  Leg(frontRightLegyMatrix, frontRightLegColor);
+  Leg(frontRightLegyMatrix, frontRightLegColor, -1);
 
   var tailMatrix = new Matrix4();
   var tailColor = [0.486, 0.4, 0.219,1];
-  Tail(tailMatrix, tailColor);
+  Tail(tailMatrix, tailColor, 1);
 
   // draw the head cube
   var headMatrix = new Matrix4(); 
@@ -174,13 +209,33 @@ function renderScene(){
   sendTextToHTML(" ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
 }
 
-function Tail(matrix, color){
+function Tail(matrix, color, dir){
   var tailJoint1 = new Cube();
   tailJoint1.color = color;
-  tailJoint1.matrix.translate(-.55,0,0);
-  tailJoint1.matrix.rotate(-15,0,0);
+  tailJoint1.matrix.translate(-.55,.1,0);
+  if (g_isAnimated){
+    tailJoint1.matrix.rotate(-15,dir*100*(Math.sin(g_seconds*4))*2,0,100);
+  } else {
+    tailJoint1.matrix.rotate(-15,-g_tailAngle,0,1)
+  }
+  var jointPass1 = new Matrix4(tailJoint1.matrix);
+  tailJoint1.matrix.translate(0,-.1,0);
   tailJoint1.matrix.scale(.1,.3,.1);
   tailJoint1.render();
+
+  var tailJoint2 = new Cube();
+  tailJoint2.color = [color[0]*.9,color[1]*.9,color[2]*.9,color[3]];
+  tailJoint2.matrix = new Matrix4(jointPass1);
+  var jointPass2 = tailJoint2.matrix;
+  tailJoint2.matrix.translate(0, -.2, 0);
+  if (g_isAnimated){
+    tailJoint2.matrix.rotate(15,dir*-35*(Math.sin(g_seconds*4)*5),0,100);
+  } else {
+    tailJoint2.matrix.rotate(15,g_tailAngle,0,1)
+  }
+  tailJoint2.matrix.translate(0, -.15, 0);
+  tailJoint2.matrix.scale(.08, .25, .08);
+  tailJoint2.render(); 
 }
 
 function Head(matrix, color) {
@@ -217,11 +272,15 @@ function Head(matrix, color) {
   cowSnout.render();
 }
 
-function Leg(matrix, color) {
+function Leg(matrix, color, dir) {
   var cowLegJoint1 = new Cube();
   cowLegJoint1.color = color;
   cowLegJoint1.matrix = new Matrix4(matrix);
-  cowLegJoint1.matrix.rotate(15, 0, 0);
+  if (g_isAnimated){
+    cowLegJoint1.matrix.rotate(15*(dir*Math.sin(g_seconds*4)), 0, 0);
+  } else {
+    cowLegJoint1.matrix.rotate((g_legAngle)*dir, 0, 0);
+  }
   cowLegJoint1.matrix.translate(0,.05,0)
   var jointPass1 = new Matrix4(cowLegJoint1.matrix)
   cowLegJoint1.matrix.scale(.2, .2, .2);
@@ -230,7 +289,11 @@ function Leg(matrix, color) {
   var cowLegJoint2 = new Cube();
   cowLegJoint2.color = [color[0]*.9,color[1]*.9,color[2]*.9,color[3]];
   cowLegJoint2.matrix = jointPass1;
-  cowLegJoint2.matrix.rotate(-30, 0, 0);
+  if (g_isAnimated){
+    cowLegJoint2.matrix.rotate(30*(dir*Math.sin(g_seconds*4)), 0, 0);
+  } else {
+    cowLegJoint2.matrix.rotate((g_legAngle)*dir, 0, 0);
+  }
   cowLegJoint2.matrix.translate(0, -.2, .0);
   var jointPass2 = new Matrix4(cowLegJoint2.matrix)
   cowLegJoint2.matrix.scale(.175, .3, .175);
@@ -239,11 +302,24 @@ function Leg(matrix, color) {
   var cowLegJoint3 = new Cube();
   cowLegJoint3.color = [color[0]*.8,color[1]*.8,color[2]*.8,color[3]];
   cowLegJoint3.matrix = jointPass2;
-  cowLegJoint3.matrix.rotate(15,0,0);
+  if (g_isAnimated){
+    cowLegJoint2.matrix.rotate(30*(dir*Math.sin(g_seconds*4)), 0, 0);
+  } else {
+    cowLegJoint2.matrix.rotate((15+g_legAngle)*dir, 0, 0);
+  }
   cowLegJoint3.matrix.translate(0.05,-0.15,0);
   cowLegJoint3.matrix.scale(.3,.1,.2);
   cowLegJoint3.render();
 
+}
+
+function tick(){
+  g_seconds=(performance.now()/1000.0)-g_startTime;
+  console.log(g_seconds);
+
+  renderScene();
+
+  requestAnimationFrame(tick);
 }
 
 // This is to see FPS
