@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Drawing program</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+    </canvas>
+
+    <p id="numdot">XXX</p>
+
+    </p>
+    <p>
+      Camera Angle: <input type="range" id="cameraAngle" value=0 min=0 max=360 step=1 class="slide">
+    </p>
+    <p>
+      Leg Joints: <input type="range" id="legJoints" value=0 min=-25 max=25 step=1 class="slide">
+    </p>
+    <p>
+      Tail Joints: <input type="range" id="tailJoints" value=0 min=-5 max=5 step=.1 class="slide">
+    </p>
+    <p>
+      Animation <button type="button" id="animOn">On</button> <button type="button" id="animOff">Off</button>
+    </p>
+
+
+    <script src="../../lib/cuon-matrix-cse160.js"></script>
+    <script src="../../lib/webgl-debug.js"></script>
+    <script src="../../lib/cuon-utils.js"></script>
+    <script src="../../lib/cuon-utils.js"></script>
+    <script src="World.js"></script>
+    <script src="Point.js"></script>
+    <script src="Triangle.js"></script>
+    <script src="Circle.js"></script>
+    <script src="Cube.js"></script>
+    <script src="Rectangle.js"></script>
+  </body>
+</html>

@@ -16,6 +16,7 @@ class Cube {
     // Pass the color of a point to u_FragColor variable
     gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
     //top face 
+    drawTriangle3DUV([-0.5,.5,-.5,  -.5,.5,.5,  .5,.5,.5]);
     drawTriangle3D([-0.5,.5,-.5,  -.5,.5,.5,  .5,.5,.5]);
     drawTriangle3D([-.5,.5,-.5,  .5,.5,.5,  .5,.5,-.5]);
 
