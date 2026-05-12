@@ -4,7 +4,7 @@ class Cube {
     this.type = 'cube';
     this.color = [0.0, 0.0, 0.0, 0.0];
     this.matrix = new Matrix4();
-    this.textureNum = 0;
+    this.textureNum = -2;
   }
   // Tell the point to render itself.
   render(){
