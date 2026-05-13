@@ -20,6 +20,8 @@ var FSHADER_SOURCE =`
   varying vec2 v_UV;
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
+  uniform sampler2D u_Sampler1;
+  uniform sampler2D u_Sampler2;
   uniform int u_whichTexture;
   void main() {
     if (u_whichTexture == -2){
@@ -28,6 +30,10 @@ var FSHADER_SOURCE =`
       gl_FragColor = vec4(v_UV,1.0,1.0);
     } else if (u_whichTexture == 0) {
       gl_FragColor = texture2D(u_Sampler0, v_UV);
+    } else if (u_whichTexture == 1) {
+      gl_FragColor = texture2D(u_Sampler1, v_UV);
+    } else if (u_whichTexture == 2) {
+      gl_FragColor = texture2D(u_Sampler2, v_UV);
     } else {
       gl_FragColor = vec4(1,.2,.2,1);  
     }
@@ -46,6 +52,8 @@ let u_GlobalRotateMatrix;
 let u_ViewMatrix;
 let u_ProjectionMatrix;
 let u_Sampler0;
+let u_Sampler1;
+let u_Sampler2;
 let u_whichTexture;
 
 
@@ -115,10 +123,10 @@ function connectVariablesToGLSL() {
   }
   
   u_whichTexture = gl.getUniformLocation(gl.program, 'u_whichTexture');
-  if (!u_whichTexture) {
+  if (u_whichTexture === null) {
     console.log('Failed to get the storage location of u_whichTexture');
     return;
-  }
+}
   
   // Get the storage location of u_FragColor
   u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
@@ -129,8 +137,22 @@ function connectVariablesToGLSL() {
 
   // Get storage of u_Sampler
   u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
-  if(!u_Sampler0){
+  if(u_Sampler0 === null){
     console.log("Failed to get storage location of u_Sampler0");
+    return false;
+  }
+
+  // Get storage of u_Sampler
+  u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
+  if(u_Sampler1 === null){
+    console.log("Failed to get storage location of u_Sampler1");
+    return false;
+  }
+
+  // Get storage of u_Sampler
+  u_Sampler2 = gl.getUniformLocation(gl.program, 'u_Sampler2');
+  if(u_Sampler2 === null){
+    console.log("Failed to get storage location of u_Sampler2");
     return false;
   }
 
@@ -141,16 +163,35 @@ function connectVariablesToGLSL() {
 }
 
 function initTextures(gl, n){
-  var image = new Image(); // Create image object
-  if (!image){
-    console.log("Failed to create image object")
+  var image0 = new Image(); // Create image object
+  if (!image0){
+    console.log("Failed to create image 0 object")
     return false;
   }
-  
   // Register event handler to be called on loading an image
-  image.onload = function(){sendTextureToTEXTURE0(image);}
+  image0.onload = function(){sendTextureToTEXTURE0(image0);}
   // Tell browser to load an image
-  image.src = 'brick.png';
+  image0.src = 'brick.png';
+  
+  var image1 = new Image(); // Create image object
+  if (!image1){
+    console.log("Failed to create image 1 object")
+    return false;
+  }
+  // Register event handler to be called on loading an image
+  image1.onload = function(){sendTextureToTEXTURE1(image1);}
+  // Tell browser to load an image
+  image1.src = 'floor.jpg';
+  
+  var image2 = new Image(); // Create image object
+  if (!image2){
+    console.log("Failed to create image 2 object")
+    return false;
+  }
+  // Register event handler to be called on loading an image
+  image2.onload = function(){sendTextureToTEXTURE2(image2);}
+  // Tell browser to load an image
+  image2.src = 'skybox.jpg';
   
   return true;
 }
@@ -193,18 +234,43 @@ function sendTextureToTEXTURE0(image){
     return false;
   }
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
-  // Enable texture unit0
-  gl.activeTexture(gl.TEXTURE0);
-  // Bind the texture to the target
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.activeTexture(gl.TEXTURE0); // Enable texture unit0
+  gl.bindTexture(gl.TEXTURE_2D, texture);  // Bind the texture to the target
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);  // Set texture parameters
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);  // Set the texture image
+  gl.uniform1i(u_Sampler0, 0);  // Set the texture unit 0 to sampler
+  
+  console.log('finished loadTexture');
+}
 
-  // Set texture parameters
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  // Set the texture image
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+function sendTextureToTEXTURE1(image){
+  var texture = gl.createTexture(); // create texture object
+  if (!texture){
+    console.log("Failed to create texture object")
+    return false;
+  }
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
+  gl.activeTexture(gl.TEXTURE1); // Enable texture unit1
+  gl.bindTexture(gl.TEXTURE_2D, texture);  // Bind the texture to the target
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);  // Set texture parameters
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);  // Set the texture image
+  gl.uniform1i(u_Sampler1, 1);  // Set the texture unit 1 to sampler
+  
+  console.log('finished loadTexture');
+}
 
-  // Set the texture unit 0 to sampler
-  gl.uniform1i(u_Sampler0, 0);
+function sendTextureToTEXTURE2(image){
+  var texture = gl.createTexture(); // create texture object
+  if (!texture){
+    console.log("Failed to create texture object")
+    return false;
+  }
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
+  gl.activeTexture(gl.TEXTURE2); // Enable texture unit1
+  gl.bindTexture(gl.TEXTURE_2D, texture);  // Bind the texture to the target
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);  // Set texture parameters
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);  // Set the texture image
+  gl.uniform1i(u_Sampler2, 2);  // Set the texture unit 1 to sampler
   
   console.log('finished loadTexture');
 }
@@ -301,20 +367,60 @@ function renderScene(){
   // draw the body cube
   renderCow();
 
+  renderSkybox();
+
+  renderMap();
 
   // Check performance of this function
   var duration = performance.now() - startTime;
   sendTextToHTML(" ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
 }
 
-function renderFloor(){
-  var floor = new Cube();
-  floor.color = [0,0,0,1]
-  floor.textureNum = -1;
-  floor.matrix.translate(0,-.7,0);
-  floor.matrix.scale(10,0,10);
+var g_map = [
+  [1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 0, 0, 1, 0, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 1, 0, 1, 0, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1]
+]
 
-  floor.render();
+
+function renderMap(){
+  for(let x = -4; x <= 4; x += 1){
+    for(let z = -4; z <= 4; z += 1){
+      if (g_map[x+4][z+4] === 1){
+        var wall = new Cube();
+        wall.textureNum = 0;
+        wall.matrix.translate(x, -0.15, z);
+        wall.matrix.scale(1, 1, 1);
+        wall.render();
+      }
+    }
+  }
+}
+
+function renderFloor(){
+  for(let x = -4; x <= 4; x += 1){
+    for(let z = -4; z <= 4; z += 1){
+      var tile = new Cube();
+      tile.textureNum = 1;
+      tile.matrix.translate(x, -1.15, z);
+      tile.matrix.scale(1, 1, 1);
+      tile.render();
+    }
+  }
+}
+
+function renderSkybox(){
+  var skybox = new Cube();
+  skybox.textureNum = 2;
+  skybox.matrix.translate(0, 0, 0);
+  skybox.matrix.scale(70, 70, 70);
+  skybox.render();
 }
 
 function tick(){

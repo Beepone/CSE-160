@@ -70,7 +70,6 @@ function Tail(matrix, color, dir) {
 function Head(matrix, color) {
   //draw main part of head cube
   var cowHead = new Cube();
-  cowHead.textureNum = 0;
   cowHead.matrix = new Matrix4(matrix);
   cowHead.color = color;
   cowHead.matrix.translate(.6, .2, 0);
