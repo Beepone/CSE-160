@@ -151,116 +151,12 @@ function initTextures(gl, n){
   image.onload = function(){sendTextureToTEXTURE0(image);}
   // Tell browser to load an image
   image.src = 'brick.png';
-
+  
   return true;
 }
 
-function sendTextureToTEXTURE0(image){
-  var texture = gl.createTexture(); // create texture object
-  if (!texture){
-    console.log("Failed to create texture object")
-    return false;
-  }
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
-  // Enable texture unit0
-  gl.activeTexture(gl.TEXTURE0);
-  // Bind the texture to the target
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+function addActionsForHtmlUI(){
 
-  // Set texture parameters
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  // Set the texture image
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
-
-  // Set the texture unit 0 to sampler
-  gl.uniform1i(u_Sampler0, 0);
-
-  console.log('finished loadTexture');
-}
-
-const POINT = 0;
-const TRIANGLE = 1;
-const CIRCLE = 2;
-const RECTANGLE = 3;
-var g_shapeList = [];
-let g_selectedType = TRIANGLE;
-let g_rectangleStart = null;
-let g_globalAngle = 0;
-let g_globalXAngle = 0;
-let g_globalYAngle = 0;
-let g_legAngle = 0;
-let g_startTime = performance.now()/1000.0;
-let g_seconds = performance.now()/1000.0-g_startTime;
-let g_isAnimated = false;
-let g_tailAngle = 0;
-let g_isDragging = false;
-let g_lastMouseX = 0;
-let g_lastMouseY = 0;
-
-function main() {
-  setupWebGL();
-
-  connectVariablesToGLSL();
-
-  addActionsForHtmlUI();
-
-  document.onkeydown = keydown;
-
-  initTextures(gl, 0);
-
-  
-  // Specify the color for clearing <canvas>
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
-  
-  // renderScene();
-  requestAnimationFrame(tick)
-}
-
-function keydown(ev){
-  var eye = new Vector3([g_eye[0],g_eye[1],g_eye[2]]);
-  var at = new Vector3([g_at[0],g_at[1],g_at[2]]);
-  var forward = new Vector3(at.elements).sub(eye);
-  var forwardLen = forward.magnitude();
-  if (forwardLen > 0.001) {
-    forward.div(forwardLen);
-  } else {
-    forward = new Vector3([0,0,-1]);
-  }
-
-  var up = new Vector3(g_up);
-  var right = Vector3.cross(forward, up);
-  var rightLen = right.magnitude();
-  if (rightLen > 0.001) {
-    right.div(rightLen);
-  } else {
-    right = new Vector3([1,0,0]);
-  }
-
-  var speed = 0.25;
-  if (ev.keyCode == 37 || ev.keyCode == 65){ // LEFT or A
-    var delta = new Vector3(right.elements).mul(-speed);
-    eye.add(delta);
-    at.add(delta);
-  }
-  else if (ev.keyCode == 39 || ev.keyCode == 68){ // RIGHT or D
-    var delta = new Vector3(right.elements).mul(speed);
-    eye.add(delta);
-    at.add(delta);
-  }
-  else if (ev.keyCode == 38 || ev.keyCode == 87){ // FORWARD or W
-    var delta = new Vector3(forward.elements).mul(speed);
-    eye.add(delta);
-    at.add(delta);
-  }
-  else if (ev.keyCode == 40 || ev.keyCode == 83){ // BACKWARD or S
-    var delta = new Vector3(forward.elements).mul(-speed);
-    eye.add(delta);
-    at.add(delta);
-  }
-
-  g_eye = eye.elements;
-  g_at = at.elements;
   document.getElementById('legJoints').addEventListener('mousemove', function() { g_legAngle = this.value; });
   document.getElementById('tailJoints').addEventListener('mousemove', function() { g_tailAngle = this.value; });
   document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalXAngle = this.value; });
@@ -290,9 +186,90 @@ function keydown(ev){
   })
 }
 
-var g_eye = [0,0,5];
-var g_at=[0,0,0];
-var g_up=[0,1,0]
+function sendTextureToTEXTURE0(image){
+  var texture = gl.createTexture(); // create texture object
+  if (!texture){
+    console.log("Failed to create texture object")
+    return false;
+  }
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
+  // Enable texture unit0
+  gl.activeTexture(gl.TEXTURE0);
+  // Bind the texture to the target
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+
+  // Set texture parameters
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  // Set the texture image
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+  // Set the texture unit 0 to sampler
+  gl.uniform1i(u_Sampler0, 0);
+  
+  console.log('finished loadTexture');
+}
+
+const POINT = 0;
+const TRIANGLE = 1;
+const CIRCLE = 2;
+const RECTANGLE = 3;
+var g_shapeList = [];
+let g_selectedType = TRIANGLE;
+let g_rectangleStart = null;
+let g_globalAngle = 0;
+let g_globalXAngle = 0;
+let g_globalYAngle = 0;
+let g_legAngle = 0;
+let g_startTime = performance.now()/1000.0;
+let g_seconds = performance.now()/1000.0-g_startTime;
+let g_isAnimated = false;
+let g_tailAngle = 0;
+let g_isDragging = false;
+let g_lastMouseX = 0;
+let g_lastMouseY = 0;
+let g_camera = null;
+
+function main() {
+  setupWebGL();
+
+  connectVariablesToGLSL();
+
+  addActionsForHtmlUI();
+
+  document.onkeydown = keydown;
+
+  initTextures(gl, 0);
+  g_camera = new Camera();
+  
+  // Specify the color for clearing <canvas>
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+  
+  // renderScene();
+  requestAnimationFrame(tick)
+}
+
+function keydown(ev){
+  if (ev.keyCode == 37 || ev.keyCode == 65){ // LEFT or A
+    g_camera.strafeLeft();
+  }
+  else if (ev.keyCode == 39 || ev.keyCode == 68){ // RIGHT or D
+    g_camera.strafeRight();
+  }
+  if (ev.keyCode == 81){ // Q
+    g_camera.turnLeft();
+  }
+  else if (ev.keyCode == 69){ // E
+    g_camera.turnRight();
+  }
+  if (ev.keyCode == 38 || ev.keyCode == 87){ // FORWARD or W
+    g_camera.forward();
+  }
+  else if (ev.keyCode == 40 || ev.keyCode == 83){ // BACKWARD or S
+    g_camera.backward();
+  }
+}
+
 
 
 function renderScene(){
@@ -304,7 +281,9 @@ function renderScene(){
   gl.uniformMatrix4fv(u_ProjectionMatrix, false, projMat.elements);
   
   var viewMat = new Matrix4();
-  viewMat.setLookAt(g_eye[0],g_eye[1],g_eye[2], g_at[0],g_at[1],g_at[2], g_up[0],g_up[1],g_up[2]);
+  viewMat.setLookAt(g_camera.eye.elements[0],g_camera.eye.elements[1],g_camera.eye.elements[2], 
+                    g_camera.at.elements[0], g_camera.at.elements[1], g_camera.at.elements[2], 
+                    g_camera.up.elements[0], g_camera.up.elements[1], g_camera.up.elements[2], );
   gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements);
   
 
@@ -317,12 +296,25 @@ function renderScene(){
   // Clear <canvas>
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+  renderFloor();
+
   // draw the body cube
   renderCow();
+
 
   // Check performance of this function
   var duration = performance.now() - startTime;
   sendTextToHTML(" ms: " + Math.floor(duration) + " fps: " + Math.floor(1000/duration)/5, "numdot")
+}
+
+function renderFloor(){
+  var floor = new Cube();
+  floor.color = [0,0,0,1]
+  floor.textureNum = -1;
+  floor.matrix.translate(0,-.7,0);
+  floor.matrix.scale(10,0,10);
+
+  floor.render();
 }
 
 function tick(){
