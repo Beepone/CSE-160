@@ -17,7 +17,7 @@ var VSHADER_SOURCE =`
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
     v_VertPos = u_ModelMatrix * a_Position;
     v_UV = a_UV;
-    v_Normal = a_Normal;
+    v_Normal = normalize(mat3(u_ModelMatrix) * a_Normal);
   }`;
 
 // Fragment shader program
@@ -32,43 +32,65 @@ var FSHADER_SOURCE =`
   uniform sampler2D u_Sampler2;
   uniform int u_whichTexture;
   uniform vec3 u_lightPos;
+  uniform vec3 u_lightColor;
   uniform vec3 u_cameraPos;
+  uniform bool u_lightOn;
+  uniform vec3 u_spotPos;
+  uniform vec3 u_spotDir;
+  uniform float u_spotCutoff;
+  uniform bool u_spotOn;
   void main() {
-    if (u_whichTexture == -3){
+    if (u_whichTexture == -3) {
+      // Normal visualization — skip all lighting
       gl_FragColor = vec4((v_Normal+1.0)/2.0, 1.0);
-    }else if (u_whichTexture == -2){
-      gl_FragColor = u_FragColor;
-    } else if (u_whichTexture == -1) {
-      gl_FragColor = vec4(v_UV,1.0,1.0);
-    } else if (u_whichTexture == 0) {
-      gl_FragColor = texture2D(u_Sampler0, v_UV);
-    } else if (u_whichTexture == 1) {
-      gl_FragColor = texture2D(u_Sampler1, v_UV);
-    } else if (u_whichTexture == 2) {
-      gl_FragColor = texture2D(u_Sampler2, v_UV);
     } else {
-      gl_FragColor = vec4(1,.2,.2,1);  
-    }
-    vec3 L = normalize(u_lightPos - vec3(v_VertPos));
-    vec3 N = normalize(v_Normal);
-    float nDotL = max(dot(N, L), 0.0);
+      // Resolve base color from texture / solid color
+      vec4 baseColor;
+      if (u_whichTexture == -2) {
+        baseColor = u_FragColor;
+      } else if (u_whichTexture == -1) {
+        baseColor = vec4(v_UV, 1.0, 1.0);
+      } else if (u_whichTexture == 0) {
+        baseColor = texture2D(u_Sampler0, v_UV);
+      } else if (u_whichTexture == 1) {
+        baseColor = texture2D(u_Sampler1, v_UV);
+      } else if (u_whichTexture == 2) {
+        baseColor = texture2D(u_Sampler2, v_UV);
+      } else {
+        baseColor = vec4(1.0, 0.2, 0.2, 1.0);
+      }
 
-    // Reflection
-    vec3 R = reflect(-L, N);
+      vec3 N = normalize(v_Normal);
+      vec3 result = vec3(baseColor);
 
-    // Eye
-    vec3 E = normalize(u_cameraPos-vec3(v_VertPos));
+      // ── Point light ──
+      if (u_lightOn) {
+        vec3 L = normalize(u_lightPos - vec3(v_VertPos));
+        float nDotL = max(dot(N, L), 0.0);
+        vec3 R = reflect(-L, N);
+        vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
+        float specular = pow(max(dot(E, R), 0.0), 10.0);
+        vec3 diffuse = vec3(baseColor) * nDotL * 0.7 * u_lightColor;
+        vec3 ambient = vec3(baseColor) * 0.3;
+        if (u_whichTexture == -2 || u_whichTexture == 0 || u_whichTexture == 1) {
+          result = diffuse + ambient;
+        } else {
+          result = vec3(specular) + diffuse + ambient;
+        }
+      }
 
-    // Specular
-    float specular = pow(max(dot(E,R), 0.0), 10.0);
+      // ── Spotlight (flashlight, follows camera) ──
+      if (u_spotOn) {
+        vec3 spotL    = normalize(u_spotPos - vec3(v_VertPos));
+        float spotCos = dot(-spotL, normalize(u_spotDir));
+        if (spotCos > u_spotCutoff) {
+          float falloff    = pow(spotCos, 20.0);
+          float nDotSpotL  = max(dot(N, spotL), 0.0);
+          result += vec3(baseColor) * nDotSpotL * falloff;
+        }
+      }
 
-
-    vec3 diffuse = vec3(gl_FragColor) * nDotL * 0.7;
-    vec3 ambient = vec3(gl_FragColor) * 0.3;
-    if(u_whichTexture == -2 || u_whichTexture == 0 || u_whichTexture == 1){
-      gl_FragColor = vec4(diffuse+ambient, 1.0);
-    }else{
-      gl_FragColor = vec4(specular+diffuse+ambient, 1.0);
+      gl_FragColor = vec4(clamp(result, 0.0, 1.0), 1.0);
     }
   }`;
 
@@ -82,7 +104,13 @@ let a_UV;
 let a_Normal;
 let u_FragColor;
 let u_lightPos;
+let u_lightColor;
+let u_lightOn;
 let u_cameraPos;
+let u_spotPos;
+let u_spotDir;
+let u_spotCutoff;
+let u_spotOn;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 let u_ViewMatrix;
@@ -213,6 +241,27 @@ function connectVariablesToGLSL() {
     console.log("Failed to get storage location of u_cameraPos");
     return false;
   }
+
+  // Get storage of u_lightColor
+  u_lightColor = gl.getUniformLocation(gl.program, 'u_lightColor');
+  if(u_lightColor === null){
+    console.log("Failed to get storage location of u_lightColor");
+    return false;
+  }
+
+  // Get storage of u_lightOn
+  u_lightOn = gl.getUniformLocation(gl.program, 'u_lightOn');
+  if(u_lightOn === null){
+    console.log("Failed to get storage location of u_lightOn");
+    return false;
+  }
+
+  // Get storage of spotlight uniforms
+  u_spotPos     = gl.getUniformLocation(gl.program, 'u_spotPos');
+  u_spotDir     = gl.getUniformLocation(gl.program, 'u_spotDir');
+  u_spotCutoff  = gl.getUniformLocation(gl.program, 'u_spotCutoff');
+  u_spotOn      = gl.getUniformLocation(gl.program, 'u_spotOn');
+
   // u_normalFlip = gl.getUniformLocation(gl.program, 'u_normalFlip');
   // gl.uniform1f(u_normalFlip, 1.0);
 
@@ -264,12 +313,23 @@ function addActionsForHtmlUI(){
   document.getElementById('legJoints').addEventListener('mousemove', function() { g_legAngle = this.value; });
   document.getElementById('tailJoints').addEventListener('mousemove', function() { g_tailAngle = this.value; });
   document.getElementById('cameraAngle').addEventListener('mousemove', function() { g_globalXAngle = this.value; });
-  // document.getElementById('lightSlideX').addEventListener('mousemove', function(ev) { if(ev.buttons=1){ g_lightPos[0] = this.value/50; renderScene;}});
-  // document.getElementById('lightSlideY').addEventListener('mousemove', function(ev) { if(ev.buttons=1){ g_lightPos[1] = this.value/50; renderScene;}});
-  // document.getElementById('lightSlideZ').addEventListener('mousemove', function(ev) { if(ev.buttons=1){ g_lightPos[2] = this.value/50; renderScene;}});
+  document.getElementById('lightSlideX').addEventListener('mousemove', function(ev) { if(ev.buttons=1){ g_lightPosAdd[0] = this.value/50; renderScene;}});
+  document.getElementById('lightSlideY').addEventListener('mousemove', function(ev) { if(ev.buttons=1){ g_lightPosAdd[1] = this.value/50; renderScene;}});
+  document.getElementById('lightSlideZ').addEventListener('mousemove', function(ev) { if(ev.buttons=1){ g_lightPosAdd[2] = this.value/50; renderScene;}});
   document.getElementById('animOn').onclick = function() { g_isAnimated = true; };
   document.getElementById('animOff').onclick = function() { g_isAnimated = false; };
-
+  document.getElementById('lightAnimOn').onclick = function() { lightAnim = true; };
+  document.getElementById('lightAnimOff').onclick = function() { lightAnim = false; };
+  document.getElementById('lightColorR').addEventListener('input', function() { g_lightColor[0] = this.value/255; });
+  document.getElementById('lightColorG').addEventListener('input', function() { g_lightColor[1] = this.value/255; });
+  document.getElementById('lightColorB').addEventListener('input', function() { g_lightColor[2] = this.value/255; });
+  document.getElementById('normalVizOn').onclick  = function() { g_normalViz = true; };
+  document.getElementById('normalVizOff').onclick = function() { g_normalViz = false; };
+  document.getElementById('lightOn').onclick  = function() { g_lightOn = true; };
+  document.getElementById('lightOff').onclick = function() { g_lightOn = false; };
+  document.getElementById('spotOn').onclick   = function() { g_spotOn = true; };
+  document.getElementById('spotOff').onclick  = function() { g_spotOn = false; };
+  
   canvas.addEventListener('mousedown', function(ev) {
     if (ev.button === 0) canvas.requestPointerLock();
   })
@@ -339,7 +399,13 @@ const TRIANGLE = 1;
 const CIRCLE = 2;
 const RECTANGLE = 3;
 let g_vertBuf, g_uvBuf, g_normalBuf;
-let g_lightPos = [0,1,-2];
+let g_lightPos = [0,0,0];
+let g_lightPosAdd = [0,0,0];
+let g_lightColor = [1.0, 1.0, 1.0];
+let g_lightOn = true;
+let g_spotOn   = false;
+let g_normalViz = false;
+let g_obj = null;
 var g_shapeList = [];
 let g_selectedType = TRIANGLE;
 let g_rectangleStart = null;
@@ -350,6 +416,7 @@ let g_legAngle = 0;
 let g_startTime = performance.now()/1000.0;
 let g_seconds = performance.now()/1000.0-g_startTime;
 let g_isAnimated = false;
+let lightAnim = false;
 let g_tailAngle = 0;
 let g_isDragging = false;
 let g_lastMouseX = 0;
@@ -377,6 +444,13 @@ function main() {
 
   initTextures(gl, 0);
   g_camera = new Camera();
+
+  // Load OBJ model
+  g_obj = new OBJObject();
+  g_obj.color = [0.2, 0.6, 1.0, 1.0];  // sky-blue gem
+  g_obj.matrix.translate(-3, 1, 2);
+  g_obj.matrix.scale(0.6, 0.6, 0.6);
+  g_obj.load('teapot.obj');
 
   renderFloor();
   renderMap();
@@ -436,7 +510,18 @@ function renderScene(){
   
 
   gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
+  gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
+  gl.uniform1i(u_lightOn, g_lightOn ? 1 : 0);
   gl.uniform3f(u_cameraPos, g_camera.eye.elements[0], g_camera.eye.elements[1], g_camera.eye.elements[2]);
+
+  // Spotlight follows the camera like a flashlight
+  var forward = new Vector3(g_camera.at.elements);
+  forward.sub(g_camera.eye);
+  forward.normalize();
+  gl.uniform3f(u_spotPos, g_camera.eye.elements[0], g_camera.eye.elements[1], g_camera.eye.elements[2]);
+  gl.uniform3f(u_spotDir, forward.elements[0], forward.elements[1], forward.elements[2]);
+  gl.uniform1f(u_spotCutoff, Math.cos(20 * Math.PI / 180)); // 20-degree half-angle cone
+  gl.uniform1i(u_spotOn, g_spotOn ? 1 : 0);
 
   var light = new Cube();
   light.color = [2,2,0,1];
@@ -450,6 +535,9 @@ function renderScene(){
   g_sphere.matrix.scale(1, 1, 1);
 
   if (g_sphere) g_sphere.render();
+
+  // OBJ model
+  if (g_obj) g_obj.render();
 
   // Check performance of this function
   var duration = performance.now() - startTime;
@@ -516,9 +604,17 @@ function tick(){
 }
 
 function updateAnimationAngles(){
-  g_lightPos[0] = Math.cos(g_seconds*3);
-  g_lightPos[1] = (Math.cos(g_seconds)+2)*3;
-  g_lightPos[2] = Math.cos(g_seconds)*3;
+  if(lightAnim){
+    // Orbit around the slider-set position
+    g_lightPos[0] = Math.cos(g_seconds*3)   + g_lightPosAdd[0];
+    g_lightPos[1] = (Math.cos(g_seconds)+2)*3 + g_lightPosAdd[1];
+    g_lightPos[2] = Math.cos(g_seconds)*3   + g_lightPosAdd[2];
+  } else {
+    // Sliders directly control position
+    g_lightPos[0] = g_lightPosAdd[0];
+    g_lightPos[1] = g_lightPosAdd[1];
+    g_lightPos[2] = g_lightPosAdd[2];
+  }
 }
 
 // This is to see FPS

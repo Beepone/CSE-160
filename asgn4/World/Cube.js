@@ -11,7 +11,7 @@ class Cube {
   
     var rgba = this.color;
 
-    gl.uniform1i(u_whichTexture, this.textureNum)
+    gl.uniform1i(u_whichTexture, g_normalViz ? -3 : this.textureNum)
 
     // Pass the matrix to the u_ModelMatrix attribute
     gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);

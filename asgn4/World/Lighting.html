@@ -19,6 +19,17 @@
       Light Y <input type="range" min="-250" max="250" value="0" class="slider" id="lightSlideY">
       Light Z <input type="range" min="-250" max="250" value="0" class="slider" id="lightSlideZ">
     </p>
+    <p>
+      Light <button type="button" id="lightOn">On</button> <button type="button" id="lightOff">Off</button>
+    </p>
+    <p>
+      Light Animation <button type="button" id="lightAnimOn">On</button> <button type="button" id="lightAnimOff">Off</button>
+    </p>
+    <p>
+      Light R <input type="range" min="0" max="255" value="255" class="slider" id="lightColorR">
+      Light G <input type="range" min="0" max="255" value="255" class="slider" id="lightColorG">
+      Light B <input type="range" min="0" max="255" value="255" class="slider" id="lightColorB">
+    </p>
 
     <p>
       Camera Angle: <input type="range" id="cameraAngle" value=0 min=0 max=360 step=1 class="slide">
@@ -30,7 +41,13 @@
       Tail Joints: <input type="range" id="tailJoints" value=0 min=-5 max=5 step=.1 class="slide">
     </p>
     <p>
-      Animation <button type="button" id="animOn">On</button> <button type="button" id="animOff">Off</button>
+      Normal Visualization <button type="button" id="normalVizOn">On</button> <button type="button" id="normalVizOff">Off</button>
+    </p>
+    <p>
+      Spotlight (flashlight) <button type="button" id="spotOn">On</button> <button type="button" id="spotOff">Off</button>
+    </p>
+    <p>
+      Cow Animation <button type="button" id="animOn">On</button> <button type="button" id="animOff">Off</button>
     </p>
 
 
@@ -40,6 +57,7 @@
     <script src="../../lib/webgl-debug.js"></script>
     <script src="../../lib/webgl-utils.js"></script>
     <!-- <script src="../../lib/three.min.js"></script> -->
+    <script src="OBJLoader.js"></script>
     <script src="World.js"></script>
     <script src="Point.js"></script>
     <script src="Camera.js"></script>
