@@ -2,61 +2,274 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Drawing program</title>
+    <title>WebGL Lighting Demo</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        background: #0d0d1a;
+        color: #d0d0e8;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 18px;
+        gap: 14px;
+      }
+
+      h1 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #7eb8ff;
+        letter-spacing: 0.5px;
+      }
+
+      /* ── Layout ── */
+      .main {
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      /* ── Canvas ── */
+      canvas {
+        display: block;
+        border-radius: 10px;
+        border: 2px solid #2a2a45;
+        box-shadow: 0 0 40px rgba(80, 110, 255, 0.12);
+        flex-shrink: 0;
+      }
+
+      #numdot {
+        font-family: 'Consolas', monospace;
+        font-size: 11px;
+        color: #50507a;
+        margin-top: 7px;
+        text-align: right;
+        width: 600px;
+      }
+
+      /* ── Controls panel ── */
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 270px;
+      }
+
+      /* ── Card ── */
+      .card {
+        background: #13132a;
+        border: 1px solid #252545;
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+
+      .card-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: #5570aa;
+        padding-bottom: 7px;
+        border-bottom: 1px solid #1f1f40;
+      }
+
+      /* ── Rows ── */
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .row label {
+        width: 52px;
+        color: #7878a8;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      /* ── Sliders ── */
+      input[type="range"] {
+        flex: 1;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 4px;
+        border-radius: 2px;
+        background: #1e1e40;
+        outline: none;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #5580ff;
+        cursor: pointer;
+        box-shadow: 0 0 7px rgba(85, 128, 255, 0.55);
+        transition: transform 0.1s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+      /* RGB-tinted thumbs */
+      #lightColorR::-webkit-slider-thumb { background: #ff4d4d; box-shadow: 0 0 7px rgba(255,77,77,.55); }
+      #lightColorG::-webkit-slider-thumb { background: #4dff80; box-shadow: 0 0 7px rgba(77,255,128,.55); }
+      #lightColorB::-webkit-slider-thumb { background: #4d9fff; box-shadow: 0 0 7px rgba(77,159,255,.55); }
+
+      /* ── Button groups ── */
+      .btn-group {
+        display: flex;
+        gap: 5px;
+        flex: 1;
+      }
+
+      button {
+        flex: 1;
+        padding: 5px 0;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: filter 0.15s, transform 0.1s;
+      }
+
+      button:active { transform: scale(0.94); }
+      button:hover  { filter: brightness(1.2); }
+
+      .btn-on  { background: #1a4d2a; color: #66dd88; }
+      .btn-off { background: #4d1a1a; color: #dd6666; }
+    </style>
   </head>
 
   <body onload="main()">
-    <canvas id="webgl" width="600" height="600">
-    Please use a browser that supports "canvas"
-    </canvas>
+    <h1>WebGL Lighting Demo</h1>
 
-    <p id="numdot">XXX</p>
+    <div class="main">
 
-    </p>
+      <!-- Canvas -->
+      <div>
+        <canvas id="webgl" width="600" height="600">
+          Please use a browser that supports "canvas"
+        </canvas>
+        <p id="numdot"></p>
+      </div>
 
-    <p>
-      Light X <input type="range" min="-250" max="250" value="0" class="slider" id="lightSlideX">
-      Light Y <input type="range" min="-250" max="250" value="0" class="slider" id="lightSlideY">
-      Light Z <input type="range" min="-250" max="250" value="0" class="slider" id="lightSlideZ">
-    </p>
-    <p>
-      Light <button type="button" id="lightOn">On</button> <button type="button" id="lightOff">Off</button>
-    </p>
-    <p>
-      Light Animation <button type="button" id="lightAnimOn">On</button> <button type="button" id="lightAnimOff">Off</button>
-    </p>
-    <p>
-      Light R <input type="range" min="0" max="255" value="255" class="slider" id="lightColorR">
-      Light G <input type="range" min="0" max="255" value="255" class="slider" id="lightColorG">
-      Light B <input type="range" min="0" max="255" value="255" class="slider" id="lightColorB">
-    </p>
+      <!-- Controls -->
+      <div class="controls">
 
-    <p>
-      Camera Angle: <input type="range" id="cameraAngle" value=0 min=0 max=360 step=1 class="slide">
-    </p>
-    <p>
-      Leg Joints: <input type="range" id="legJoints" value=0 min=-25 max=25 step=1 class="slide">
-    </p>
-    <p>
-      Tail Joints: <input type="range" id="tailJoints" value=0 min=-5 max=5 step=.1 class="slide">
-    </p>
-    <p>
-      Normal Visualization <button type="button" id="normalVizOn">On</button> <button type="button" id="normalVizOff">Off</button>
-    </p>
-    <p>
-      Spotlight (flashlight) <button type="button" id="spotOn">On</button> <button type="button" id="spotOff">Off</button>
-    </p>
-    <p>
-      Cow Animation <button type="button" id="animOn">On</button> <button type="button" id="animOff">Off</button>
-    </p>
+        <!-- Point Light -->
+        <div class="card">
+          <div class="card-title">Point Light</div>
 
+          <div class="row">
+            <label>On / Off</label>
+            <div class="btn-group">
+              <button class="btn-on"  id="lightOn">On</button>
+              <button class="btn-off" id="lightOff">Off</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Animate</label>
+            <div class="btn-group">
+              <button class="btn-on"  id="lightAnimOn">On</button>
+              <button class="btn-off" id="lightAnimOff">Off</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>X</label>
+            <input type="range" min="-250" max="250" value="0" id="lightSlideX">
+          </div>
+          <div class="row">
+            <label>Y</label>
+            <input type="range" min="-250" max="250" value="0" id="lightSlideY">
+          </div>
+          <div class="row">
+            <label>Z</label>
+            <input type="range" min="-250" max="250" value="0" id="lightSlideZ">
+          </div>
+
+          <div class="row">
+            <label>R</label>
+            <input type="range" min="0" max="255" value="255" id="lightColorR">
+          </div>
+          <div class="row">
+            <label>G</label>
+            <input type="range" min="0" max="255" value="255" id="lightColorG">
+          </div>
+          <div class="row">
+            <label>B</label>
+            <input type="range" min="0" max="255" value="255" id="lightColorB">
+          </div>
+        </div>
+
+        <!-- Spotlight -->
+        <div class="card">
+          <div class="card-title">Spotlight — Flashlight</div>
+          <div class="row">
+            <label>On / Off</label>
+            <div class="btn-group">
+              <button class="btn-on"  id="spotOn">On</button>
+              <button class="btn-off" id="spotOff">Off</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debug -->
+        <div class="card">
+          <div class="card-title">Debug</div>
+          <div class="row">
+            <label>Normals</label>
+            <div class="btn-group">
+              <button class="btn-on"  id="normalVizOn">On</button>
+              <button class="btn-off" id="normalVizOff">Off</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cow -->
+        <div class="card">
+          <div class="card-title">Cow Animation</div>
+
+          <div class="row">
+            <label>Animate</label>
+            <div class="btn-group">
+              <button class="btn-on"  id="animOn">On</button>
+              <button class="btn-off" id="animOff">Off</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Legs</label>
+            <input type="range" id="legJoints"   value="0"  min="-25" max="25"  step="1">
+          </div>
+          <div class="row">
+            <label>Tail</label>
+            <input type="range" id="tailJoints"  value="0"  min="-5"  max="5"   step="0.1">
+          </div>
+          <div class="row">
+            <label>Camera</label>
+            <input type="range" id="cameraAngle" value="0"  min="0"   max="360" step="1">
+          </div>
+        </div>
+
+      </div><!-- /controls -->
+    </div><!-- /main -->
 
     <script src="../../lib/cuon-matrix-cse160.js"></script>
-    <!-- <script src="../../lib/cuon-matrix.js"></script> -->
     <script src="../../lib/cuon-utils.js"></script>
     <script src="../../lib/webgl-debug.js"></script>
     <script src="../../lib/webgl-utils.js"></script>
-    <!-- <script src="../../lib/three.min.js"></script> -->
     <script src="OBJLoader.js"></script>
     <script src="World.js"></script>
     <script src="Point.js"></script>
