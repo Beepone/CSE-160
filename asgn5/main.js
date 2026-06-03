@@ -1,9 +1,7 @@
 import * as THREE from 'three';
-// OrbitControls lets the user rotate/zoom/pan the camera with the mouse
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-// GLTFLoader lets us load external 3D model files (.glb / .gltf)
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { initObstacles, updateObstacles } from './obstacles.js';
 // ── Renderer ──────────────────────────────────────────────────────────────────
 // The renderer is what actually draws everything onto the screen using WebGL.
 // antialias: true smooths out jagged edges on geometry.
@@ -32,18 +30,38 @@ const scene = new THREE.Scene();
 // Near/far clip planes define the range of distances the camera can see.
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-// Move the camera back and up so it isn't inside the objects at the origin
-camera.position.set(0, 10, 30);
+// Start the camera behind and above where the car will be
+camera.position.set(0, 5, 28);
+camera.lookAt(0, 0, 20); // look toward the car's starting position
 
-// ── Controls ──────────────────────────────────────────────────────────────────
-// OrbitControls binds mouse input to the camera:
-//   Left-drag  → rotate around the target point
-//   Scroll     → zoom in/out
-//   Right-drag → pan
-const controls = new OrbitControls(camera, renderer.domElement);
+// ── Car State ─────────────────────────────────────────────────────────────────
+// The car object is null until the OBJ finishes loading asynchronously.
+// Every system that touches the car must guard with: if (!car) return;
+let car = null;
 
-// enableDamping adds a smooth inertia effect when you stop moving the mouse
-controls.enableDamping = true;
+// Lane system: 3 fixed X positions. The car only moves left/right between these.
+// This is the same approach used in endless runners like Subway Surfers.
+const LANES = [-17, -8, 0, 8, 17];  // left lane, center lane, right lane
+let currentLane = 2;        // start in the center (index 1)
+
+initObstacles(scene, LANES);
+
+// targetX is the X coordinate the car is sliding toward.
+// We update it when the player presses a key, then lerp toward it each frame.
+let targetX = LANES[currentLane];
+
+// ── Keyboard Input ────────────────────────────────────────────────────────────
+// keydown fires once per key press. We listen for left/right arrows to change lanes.
+window.addEventListener('keydown', (e) => {
+  if (( e.key === 'ArrowLeft' || e.key === 'a' ) && currentLane > 0) {
+    currentLane--;              // move one lane to the left
+    targetX = LANES[currentLane];
+  }
+  if ((e.key === 'ArrowRight' || e.key === 'd' )  && currentLane < LANES.length - 1) {
+    currentLane++;              // move one lane to the right
+    targetX = LANES[currentLane];
+  }
+});
 
 // ── Lights ────────────────────────────────────────────────────────────────────
 // Three.js objects are invisible without light (when using Phong/Lambert materials).
@@ -79,7 +97,10 @@ scene.add(pointLight);
 const texLoader = new THREE.TextureLoader();
 
 // TODO: once you add an image to textures/, load it like this:
-// const boxTex = texLoader.load('textures/crate.png');
+const roadTex = texLoader.load('textures/road.jpg');
+roadTex.wrapS = THREE.RepeatWrapping;
+roadTex.wrapT = THREE.RepeatWrapping;
+roadTex.repeat.set(2, 10);
 // Then pass it to a material: new THREE.MeshPhongMaterial({ map: boxTex })
 
 // ── Primary Shapes ────────────────────────────────────────────────────────────
@@ -88,45 +109,11 @@ const texLoader = new THREE.TextureLoader();
 //   Material  — how the surface looks (color, texture, shininess, etc.)
 // You combine them: new THREE.Mesh(geometry, material)
 
-const shapes = []; // we'll store animated meshes here so the animation loop can access them
-
-// --- Cube ---
-// BoxGeometry(width, height, depth)
-const cubeGeo = new THREE.BoxGeometry(2, 2, 2);
-// MeshPhongMaterial supports shininess and reacts to light sources
-const cubeMat = new THREE.MeshPhongMaterial({ color: 0x44aa88 });
-const cube = new THREE.Mesh(cubeGeo, cubeMat);
-cube.position.set(0, 2, 0); // lift it above the ground (y = half its height)
-cube.castShadow = true;      // this mesh will cast a shadow on other surfaces
-scene.add(cube);
-shapes.push(cube);
-
-// --- Sphere ---
-// SphereGeometry(radius, widthSegments, heightSegments)
-// More segments = smoother sphere, but heavier on the GPU
-const sphereGeo = new THREE.SphereGeometry(1, 32, 32);
-const sphereMat = new THREE.MeshPhongMaterial({ color: 0xcc4444 });
-const sphere = new THREE.Mesh(sphereGeo, sphereMat);
-sphere.position.set(4, 1, 0);
-sphere.castShadow = true;
-scene.add(sphere);
-shapes.push(sphere);
-
-// --- Cylinder ---
-// CylinderGeometry(radiusTop, radiusBottom, height, radialSegments)
-// Setting both radii equal makes a straight cylinder; different values make a cone/frustum
-const cylGeo = new THREE.CylinderGeometry(0.7, 0.7, 3, 32);
-const cylMat = new THREE.MeshPhongMaterial({ color: 0x4488cc });
-const cyl = new THREE.Mesh(cylGeo, cylMat);
-cyl.position.set(-4, 1.5, 0); // y = half height so the bottom sits on the ground
-cyl.castShadow = true;
-scene.add(cyl);
-shapes.push(cyl);
 
 // --- Ground Plane ---
 // PlaneGeometry(width, height) — a flat rectangle lying in the XY plane by default
-const groundGeo = new THREE.PlaneGeometry(100, 100);
-const groundMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+const groundGeo = new THREE.PlaneGeometry(50, 2000);
+const groundMat = new THREE.MeshPhongMaterial({ map: roadTex });
 const ground = new THREE.Mesh(groundGeo, groundMat);
 // Rotate -90° around X to make it lie flat (it starts standing upright)
 ground.rotation.x = -Math.PI / 2;
@@ -137,15 +124,16 @@ scene.add(ground);
 // scene.background can be a solid color, a texture, or a CubeTexture (6-sided skybox).
 // For now we use a placeholder sky-blue color.
 // TODO: load 6 images (px, nx, py, ny, pz, nz) into textures/skybox/ then replace this with:
-//   const cubeLoader = new THREE.CubeTextureLoader();
-//   scene.background = cubeLoader.setPath('textures/skybox/').load(['px.jpg','nx.jpg','py.jpg','ny.jpg','pz.jpg','nz.jpg']);
-scene.background = new THREE.Color(0x87ceeb); // placeholder sky-blue
+const cubeLoader = new THREE.CubeTextureLoader();
+scene.background = cubeLoader.setPath('textures/skybox/').load(['px.png','nx.png','py.png','ny.png','pz.png','nz.png']);
+// scene.background = new THREE.Color(0x87ceeb); // placeholder sky-blue
+
 
 // ── 3D Model ──────────────────────────────────────────────────────────────────
 const mtlLoader = new MTLLoader();
 mtlLoader.load('models/Car_Obj.mtl', (materials) => {
   materials.preload(); // tell Three.js to prepare the textures
-
+  
   const objLoader = new OBJLoader();
   objLoader.setMaterials(materials); // apply the MTL materials to the OBJ
   objLoader.load('models/Car Obj.obj', (object) => {
@@ -160,31 +148,72 @@ mtlLoader.load('models/Car_Obj.mtl', (materials) => {
         child.receiveShadow = true; // and receives shadows from other objects
       }
     });
-    object.position.y = .320;
-    object.position.z = 20;
+    object.position.set(0, 0.320, 20);
     object.rotation.y = Math.PI;
     scene.add(object);
+    car = object; // store reference so the animation loop can move it
   });
 });
 
+// ── Game State ────────────────────────────────────────────────────────────────
+let gameOver = false;
+let score = 0;
+
+// Grab the HTML elements we'll update each frame
+const scoreEl    = document.getElementById('score');
+const gameOverEl = document.getElementById('gameover');
+const finalScore = document.getElementById('finalscore');
+
+// Time - prevFrameTime = deltaTime
+var deltaTime = 0;
+var time = 0;
+const ROAD_SPEED = 1.5;
+
 // ── Animation Loop ────────────────────────────────────────────────────────────
-// requestAnimationFrame calls our function before the next screen repaint (~60 fps).
-// Three.js passes the elapsed time in milliseconds as the argument 't'.
 function animate(t) {
-  requestAnimationFrame(animate); // schedule the next frame
+  requestAnimationFrame(animate);
+  var lastTime = time;
+  time = t * 0.001;
+  deltaTime = Math.min(time - lastTime, .1);
 
-  const time = t * 0.001; // convert ms → seconds for easier math
+  if (!gameOver) {
+    // updateObstacles returns true when the car is hit
+    if (updateObstacles(deltaTime, car)) {
+      gameOver = true;
+      // Stop the road scrolling
+      // Show the game over overlay and final score
+      gameOverEl.style.display = 'flex';
+      finalScore.textContent = `Score: ${score}`;
+    }
 
-  // Rotate the cube continuously — incrementing rotation each frame
-  cube.rotation.x = time;       // one full rotation every ~6 seconds
-  cube.rotation.y = time * 0.7; // slightly slower on Y so it looks interesting
+    // Increment score by time survived (rounded to 1 decimal)
+    score += deltaTime;
+    scoreEl.textContent = `Score: ${Math.floor(score)}`;
+  }
+  
 
-  // Bob the sphere up and down using a sine wave
-  // sin() oscillates between -1 and 1, so this moves the sphere ±0.8 units
-  sphere.position.y = 2 + Math.sin(time * 2) * 0.8;
 
-  controls.update(); // required every frame when enableDamping is true
-  renderer.render(scene, camera); // draw the current frame
+  // ── Car movement ────────────────────────────────────────────────────────────
+  if (car) {
+    // lerp(current, target, t) moves 'current' a fraction 't' closer to 'target' each frame.
+    // 0.1 means we close 10% of the remaining gap every frame — gives a smooth slide feel.
+    car.position.x = THREE.MathUtils.lerp(car.position.x, targetX, 0.2);
+    car.position.y = 0.320 + Math.sin(time * 20) * .05;
+
+    // ── Follow camera ──────────────────────────────────────────────────────────
+    // Keep the camera a fixed offset behind and above the car.
+    // Lerp the camera X slightly slower than the car so it lags a little — feels more natural.
+    const camX = THREE.MathUtils.lerp(camera.position.x, car.position.x, .25);
+    const camY = THREE.MathUtils.lerp(camera.position.y, car.position.y, .01);
+    camera.position.set(camX, camY + .1, car.position.z + 8);
+    camera.lookAt(car.position.x, car.position.y + 1, car.position.z - 5);
+  }
+
+  // ── Road movement — stops when game is over ──────────────────────────────────
+  if (ground && !gameOver){
+    roadTex.offset.y += ROAD_SPEED * deltaTime;
+  }
+  renderer.render(scene, camera);
 }
 requestAnimationFrame(animate); // kick off the loop
 
