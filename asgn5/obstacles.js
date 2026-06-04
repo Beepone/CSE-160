@@ -9,8 +9,8 @@ export const obstacles = []; // active obstacle meshes currently in the scene
 // Constants — tune these to change game feel
 export const SPAWN_Z = -200;       // Z where obstacles appear (far ahead of car)
 export const DESPAWN_Z = 100;     // Z where obstacles are removed (behind camera)
-export const OBSTACLE_SPEED = 150; // units per second
-export const SPAWN_INTERVAL = .2; // seconds between spawns
+export const OBSTACLE_SPEED = 75; // units per second
+export const SPAWN_INTERVAL = .4; // seconds between spawns
 export let spawnTimer = 0;
 
 // Call this once at startup to give this module access to the scene and lane data

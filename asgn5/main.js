@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { initObstacles, updateObstacles } from './obstacles.js';
+import { initLamps, updateLamps } from './streetlamps.js';
 // ── Renderer ──────────────────────────────────────────────────────────────────
 // The renderer is what actually draws everything onto the screen using WebGL.
 // antialias: true smooths out jagged edges on geometry.
@@ -11,7 +13,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 // Use the screen's native pixel density (important for sharp rendering on high-DPI screens)
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(window.devicePixelRatio/2);
 
 // Enable shadow rendering — objects can cast and receive shadows
 renderer.shadowMap.enabled = true;
@@ -45,6 +47,7 @@ const LANES = [-17, -8, 0, 8, 17];  // left lane, center lane, right lane
 let currentLane = 2;        // start in the center (index 1)
 
 initObstacles(scene, LANES);
+initLamps(scene);
 
 // targetX is the X coordinate the car is sliding toward.
 // We update it when the player presses a key, then lerp toward it each frame.
@@ -70,26 +73,16 @@ window.addEventListener('keydown', (e) => {
 // 1. AmbientLight — casts uniform light on every surface from every direction.
 //    It has no position and creates no shadows. Good for preventing pure-black shadows.
 //    Args: color (hex), intensity
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+// Deep blue-purple tint to match the night skybox
+const ambientLight = new THREE.AmbientLight(0x2a1a4a, .4);
 scene.add(ambientLight);
 
-// // 2. DirectionalLight — simulates a far-away light source like the sun.
-//    All rays travel in the same direction, so it can cast hard shadows.
-const dirLight = new THREE.DirectionalLight(0xffffff, .1);
-dirLight.position.set(10, 20, 10); // position tells Three.js which direction light comes FROM
-dirLight.castShadow = true;        // allow this light to generate shadow maps
+// Moonlight — cool blue-white directional light coming from above-left
+const dirLight = new THREE.DirectionalLight(0x4466aa, 1);
+dirLight.position.set(10, 20, 10);
+dirLight.castShadow = true;
 scene.add(dirLight);
 
-// 3. PointLight — emits light in all directions from a single point, like a light bulb.
-//    Args: color, intensity, distance (how far the light reaches before fading to 0)
-// distance: 0 means infinite range — light reaches everywhere with no hard cutoff square
-const pointLight = new THREE.PointLight(0xff8800, 200, 200);
-pointLight.position.set(0, 20, 0);
-pointLight.castShadow = true;
-// Point light shadows are expensive — Three.js renders 6 shadow maps (one per cube face)
-// instead of the single map a DirectionalLight needs. Off by default for performance.
-pointLight.castShadow = true;
-scene.add(pointLight);
 
 // ── Textures ──────────────────────────────────────────────────────────────────
 // TextureLoader handles loading image files (PNG, JPG, etc.) as GPU textures.
@@ -100,7 +93,7 @@ const texLoader = new THREE.TextureLoader();
 const roadTex = texLoader.load('textures/road.jpg');
 roadTex.wrapS = THREE.RepeatWrapping;
 roadTex.wrapT = THREE.RepeatWrapping;
-roadTex.repeat.set(2, 10);
+roadTex.repeat.set(2, 40);
 // Then pass it to a material: new THREE.MeshPhongMaterial({ map: boxTex })
 
 // ── Primary Shapes ────────────────────────────────────────────────────────────
@@ -108,17 +101,47 @@ roadTex.repeat.set(2, 10);
 //   Geometry — the shape/vertex data (BoxGeometry, SphereGeometry, etc.)
 //   Material  — how the surface looks (color, texture, shininess, etc.)
 // You combine them: new THREE.Mesh(geometry, material)
+const sidewalkGeoR = new THREE.BoxGeometry(5, 2, 2000);
+const sidewalkMatR = new THREE.MeshPhongMaterial({ color: 0x4466aa });
+const sidewalkR = new THREE.Mesh(sidewalkGeoR, sidewalkMatR);
+sidewalkR.position.x = 28;
+scene.add(sidewalkR);
 
+const sidewalkGeoL = new THREE.BoxGeometry(5, 2, 2000);
+const sidewalkMatL = new THREE.MeshPhongMaterial({ color: 0x4466aa });
+const sidewalkL = new THREE.Mesh(sidewalkGeoL, sidewalkMatL);
+sidewalkL.position.x = -28;
+scene.add(sidewalkL);
 
-// --- Ground Plane ---
+// --- Road Plane ---
 // PlaneGeometry(width, height) — a flat rectangle lying in the XY plane by default
-const groundGeo = new THREE.PlaneGeometry(50, 2000);
-const groundMat = new THREE.MeshPhongMaterial({ map: roadTex });
-const ground = new THREE.Mesh(groundGeo, groundMat);
+const roadGeo = new THREE.PlaneGeometry(50, 2000);
+const roadMat = new THREE.MeshPhongMaterial({ map: roadTex });
+const road = new THREE.Mesh(roadGeo, roadMat);
 // Rotate -90° around X to make it lie flat (it starts standing upright)
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true; // allow shadows from other objects to appear on this surface
-scene.add(ground);
+road.rotation.x = -Math.PI / 2;
+road.receiveShadow = true; // allow shadows from other objects to appear on this surface
+scene.add(road);
+
+// --- Grass Plane ---
+// PlaneGeometry(width, height) — a flat rectangle lying in the XY plane by default
+const grassGeo = new THREE.PlaneGeometry(1000, 2000);
+const grassMat = new THREE.MeshPhongMaterial({ color: 0x44aa88 });
+const grassR = new THREE.Mesh(grassGeo, grassMat);
+// Rotate -90° around X to make it lie flat (it starts standing upright)
+grassR.position.y = .5
+grassR.position.x = 530;
+grassR.rotation.x = -Math.PI / 2;
+grassR.receiveShadow = true; // allow shadows from other objects to appear on this surface
+scene.add(grassR);
+
+const grassL = new THREE.Mesh(grassGeo, grassMat);
+// Rotate -90° around X to make it lie flat (it starts standing upright)
+grassL.position.y = .5
+grassL.position.x = -530;
+grassL.rotation.x = -Math.PI / 2;
+grassL.receiveShadow = true; // allow shadows from other objects to appear on this surface
+scene.add(grassL);
 
 // ── Skybox ────────────────────────────────────────────────────────────────────
 // scene.background can be a solid color, a texture, or a CubeTexture (6-sided skybox).
@@ -150,10 +173,36 @@ mtlLoader.load('models/Car_Obj.mtl', (materials) => {
     });
     object.position.set(0, 0.320, 20);
     object.rotation.y = Math.PI;
+
+    // ── Headlights ─────────────────────────────────────────────────────────────
+    // SpotLights added as CHILDREN of the car so they move with it automatically.
+    // car.rotation.y = Math.PI means local +Z = world -Z (forward direction).
+    // So a child at local (x, y, +Z) appears in front of the car in world space.
+    function makeHeadlight(localX) {
+      const light = new THREE.SpotLight(0xffeedd, 200, 80, Math.PI / 10, 0.5);
+      light.position.set(localX, 0.8, 2); // above the hood, front of car
+
+      // Target defines where the beam points — far ahead (+Z) and angled down (-Y)
+      const target = new THREE.Object3D();
+      target.position.set(localX, -2, 30);
+      object.add(target);       // must be in the scene graph for matrixWorld to update
+      light.target = target;
+
+      object.add(light);
+    }
+
+    makeHeadlight(-1); // left headlight
+    makeHeadlight( 1); // right headlight
+
     scene.add(object);
     car = object; // store reference so the animation loop can move it
   });
 });
+
+// ── Orbit Controls (active only on game over so the player can look around) ───
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.enabled = false;     // disabled during gameplay
+orbitControls.enableDamping = true;
 
 // ── Game State ────────────────────────────────────────────────────────────────
 let gameOver = false;
@@ -168,6 +217,7 @@ const finalScore = document.getElementById('finalscore');
 var deltaTime = 0;
 var time = 0;
 const ROAD_SPEED = 1.5;
+var speedMult = .1;
 
 // ── Animation Loop ────────────────────────────────────────────────────────────
 function animate(t) {
@@ -178,17 +228,20 @@ function animate(t) {
 
   if (!gameOver) {
     // updateObstacles returns true when the car is hit
-    if (updateObstacles(deltaTime, car)) {
+    updateLamps(deltaTime*speedMult);
+    if (updateObstacles(deltaTime*speedMult, car)) {
       gameOver = true;
-      // Stop the road scrolling
-      // Show the game over overlay and final score
       gameOverEl.style.display = 'flex';
-      finalScore.textContent = `Score: ${score}`;
+      finalScore.textContent = `Score: ${Math.floor(score)}`;
+      // Enable orbit controls so the player can look around the frozen scene
+      orbitControls.enabled = true;
     }
 
     // Increment score by time survived (rounded to 1 decimal)
     score += deltaTime;
     scoreEl.textContent = `Score: ${Math.floor(score)}`;
+    if (score >= 10) speedMult = 1 + (score/100);
+    else speedMult = .1 + (score/10);
   }
   
 
@@ -210,9 +263,13 @@ function animate(t) {
   }
 
   // ── Road movement — stops when game is over ──────────────────────────────────
-  if (ground && !gameOver){
-    roadTex.offset.y += ROAD_SPEED * deltaTime;
+  if (road && !gameOver){
+    roadTex.offset.y += ROAD_SPEED * deltaTime * speedMult;
   }
+
+  // OrbitControls requires update() each frame when damping is enabled
+  if (gameOver) orbitControls.update();
+
   renderer.render(scene, camera);
 }
 requestAnimationFrame(animate); // kick off the loop

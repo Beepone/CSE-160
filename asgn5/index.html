@@ -37,15 +37,16 @@
       #gameover {
         display: none;
         position: absolute;
-        inset: 0; /* shorthand for top/right/bottom/left: 0 — fills the whole screen */
+        inset: 0;
         background: rgba(0, 0, 0, 0.7);
         color: white;
         font-family: monospace;
-        display: none;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         gap: 20px;
+        /* Let mouse events pass through to the canvas so OrbitControls works */
+        pointer-events: none;
       }
       #gameover h1 {
         font-size: 64px;
@@ -64,6 +65,8 @@
         border: none;
         border-radius: 6px;
         cursor: pointer;
+        /* Re-enable pointer events on the button specifically so it stays clickable */
+        pointer-events: auto;
       }
       #gameover button:hover {
         background: #ff6666;
@@ -86,6 +89,7 @@
     <div id="gameover">
       <h1>GAME OVER</h1>
       <p id="finalscore">Score: 0</p>
+      <p style="font-size:14px; opacity:0.7;">Drag to look around</p>
       <button onclick="location.reload()">Play Again</button>
     </div>
 
